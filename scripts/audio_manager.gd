@@ -53,30 +53,30 @@ func make_procedural_sound(kind: String) -> AudioStreamWAV:
                 x = 0.26*sin(TAU*62.0*t)+0.13*sin(TAU*124.0*t)+0.05*sin(TAU*248.0*t)+rng.randf_range(-0.025,0.025)
             "music":
                 var beat := int(t)%4
-                var roots := [130.81,98.0,110.0,87.31]
+                var roots: Array[float] = [130.81,98.0,110.0,87.31]
                 var root: float = roots[beat]
                 x = 0.055*(sin(TAU*root*t)+sin(TAU*root*1.25*t)+sin(TAU*root*1.5*t))
             "rain":
                 smooth_noise = smooth_noise*0.82+rng.randf_range(-1.0,1.0)*0.18
                 x = smooth_noise*0.22
             "wipers":
-                var phase := fmod(t,1.0)
-                var sweep := exp(-pow((phase-0.24)/0.075,2.0))+exp(-pow((phase-0.72)/0.075,2.0))
+                var phase: float = fmod(t,1.0)
+                var sweep: float = exp(-pow((phase-0.24)/0.075,2.0))+exp(-pow((phase-0.72)/0.075,2.0))
                 x = sweep*rng.randf_range(-0.28,0.28)
             "alarm":
-                var gate := 1.0 if fmod(t,0.5)<0.22 else 0.0
-                var freq := 880.0 if int(t*2.0)%2==0 else 660.0
+                var gate: float = 1.0 if fmod(t,0.5)<0.22 else 0.0
+                var freq: float = 880.0 if int(t*2.0)%2==0 else 660.0
                 x = 0.25*gate*sin(TAU*freq*t)
             "click":
                 x = rng.randf_range(-0.55,0.55)*exp(-t*38.0)
             "fuel":
                 x = 0.10*sin(TAU*95.0*t)+rng.randf_range(-0.04,0.04)
             "success":
-                var notes := [523.25,659.25,783.99]
-                var part := min(2,int(t/0.4))
-                x = 0.28*sin(TAU*float(notes[part])*t)*fade_edges(t,duration)
+                var notes: Array[float] = [523.25,659.25,783.99]
+                var part: int = min(2,int(t/0.4))
+                x = 0.28*sin(TAU*notes[part]*t)*fade_edges(t,duration)
             "fail":
-                var freq := lerp(330.0,130.0,t/duration)
+                var freq: float = lerp(330.0,130.0,t/duration)
                 x = 0.30*sin(TAU*freq*t)*fade_edges(t,duration)
             "door":
                 x = 0.18*sin(TAU*(115.0-80.0*t)*t)+rng.randf_range(-0.08,0.08)*fade_edges(t,duration)
