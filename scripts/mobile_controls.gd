@@ -101,7 +101,7 @@ func release_actions():
 
 func update_visuals():
     left_knob.position = left_center + left_axis*JOYSTICK_RADIUS - left_knob.size*0.5
-    var y := lerp(608.0,398.0,clamp(float(game.get("throttle")),0.0,1.0)) if game else 514.0
+    var y: float = lerp(608.0,398.0,clamp(float(game.get("throttle")),0.0,1.0)) if game else 514.0
     throttle_knob.position = Vector2(1128,y)
 
 func _unhandled_input(event):
@@ -112,7 +112,7 @@ func _unhandled_input(event):
         update_touch(event.index,event.position,event.relative)
 
 func begin_touch(index: int, pos: Vector2):
-    var viewport_size := get_viewport().get_visible_rect().size
+    var viewport_size: Vector2 = get_viewport().get_visible_rect().size
     if pos.x < viewport_size.x*0.38 and pos.y > viewport_size.y*0.42 and left_touch < 0:
         left_touch = index
         update_left(pos)
@@ -140,7 +140,7 @@ func end_touch(index: int):
         look_touch = -1
 
 func update_left(pos: Vector2):
-    var offset := pos-left_center
+    var offset: Vector2 = pos-left_center
     if offset.length() > JOYSTICK_RADIUS:
         offset = offset.normalized()*JOYSTICK_RADIUS
     left_axis = offset/JOYSTICK_RADIUS
