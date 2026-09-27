@@ -37,17 +37,14 @@ func add_label(parent: Node3D, text_value: String, pos: Vector3, size := 34):
     return l
 
 func build_cabin():
-    # Galley
     game.box(plane,"GalleyLeft",Vector3(-1.85,1.05,5.7),Vector3(1.0,2.1,1.2),Color(0.74,0.76,0.78))
     game.box(plane,"GalleyRight",Vector3(1.85,1.05,5.7),Vector3(1.0,2.1,1.2),Color(0.74,0.76,0.78))
     game.box(plane,"GalleyShelf",Vector3(0,2.35,5.75),Vector3(3.5,0.25,1.0),Color(0.34,0.36,0.39))
     add_label(plane,"КУХНЯ",Vector3(0,2.55,5.15),28)
-    # Small toilet compartment
     game.box(plane,"ToiletWall",Vector3(1.0,1.45,6.9),Vector3(0.15,2.9,2.0),Color(0.68,0.7,0.73))
     game.box(plane,"ToiletBack",Vector3(1.75,1.45,7.8),Vector3(1.65,2.9,0.15),Color(0.68,0.7,0.73))
     game.box(plane,"ToiletSeat",Vector3(1.75,0.45,7.15),Vector3(0.75,0.5,0.75),Color(0.9,0.9,0.88))
     add_label(plane,"WC",Vector3(1.55,2.3,6.0),28)
-    # Side exit door - visual/interactive panel
     door = Node3D.new()
     door.name = "CabinDoorPivot"
     door.position = Vector3(-2.35,1.45,4.8)
@@ -56,14 +53,12 @@ func build_cabin():
     door_body.add_to_group("cockpit_action")
     door_body.set_meta("action","door")
     add_label(door,"ДВЕРЬ",Vector3(0.12,0.45,0),24)
-    # Cabin light
     cabin_light = OmniLight3D.new()
     cabin_light.position = Vector3(0,2.55,1.5)
     cabin_light.omni_range = 11.0
     cabin_light.light_energy = 1.8
     cabin_light.visible = false
     plane.add_child(cabin_light)
-    # Extra storage cabinets and luggage bins
     for z in [-2.0,0.0,2.0,4.0]:
         game.box(plane,"BinL",Vector3(-2.1,2.45,z),Vector3(0.65,0.55,1.45),Color(0.86,0.87,0.88))
         game.box(plane,"BinR",Vector3(2.1,2.45,z),Vector3(0.65,0.55,1.45),Color(0.86,0.87,0.88))
@@ -83,14 +78,12 @@ func build_cockpit_controls():
     make_button("MysterySwitch","???",Vector3(1.65,1.6,-5.1),Color(0.65,0.18,0.72),"funny")
 
 func build_airport():
-    # Apron and simple fictional terminal.
     game.box(game,"Apron",Vector3(-42,-0.52,115),Vector3(46,0.12,95),Color(0.28,0.29,0.31))
     game.box(game,"Terminal",Vector3(-58,5.0,100),Vector3(24,11,55),Color(0.62,0.68,0.73))
     game.box(game,"TerminalGlass",Vector3(-45.8,5.2,100),Vector3(0.3,7.0,43),Color(0.18,0.48,0.66))
     game.box(game,"TowerBase",Vector3(48,6,105),Vector3(9,13,9),Color(0.55,0.57,0.6))
     game.box(game,"TowerCab",Vector3(48,13.5,105),Vector3(13,3,13),Color(0.16,0.4,0.55))
     game.box(game,"Hangar",Vector3(55,7,35),Vector3(32,15,42),Color(0.43,0.45,0.47))
-    # Runway edge lights.
     for z in range(-220,221,20):
         for x in [-18.0,18.0]:
             var lamp := OmniLight3D.new()
@@ -100,7 +93,6 @@ func build_airport():
             lamp.light_color = Color(0.75,0.88,1.0)
             game.add_child(lamp)
             game.box(game,"RunwayLamp",Vector3(x,-0.05,z),Vector3(0.25,0.35,0.25),Color(0.8,0.9,1.0))
-    # Moving service vehicle.
     service_car = Node3D.new()
     service_car.position = Vector3(-28,0.2,145)
     game.add_child(service_car)
@@ -136,13 +128,13 @@ func _unhandled_input(event):
         pos = event.position
         pressed = true
     if not pressed: return
-    var camera := get_viewport().get_camera_3d()
+    var camera: Camera3D = get_viewport().get_camera_3d()
     if camera == null: return
-    var from := camera.project_ray_origin(pos)
-    var query := PhysicsRayQueryParameters3D.create(from,from+camera.project_ray_normal(pos)*18.0)
-    var hit := game.get_world_3d().direct_space_state.intersect_ray(query)
+    var from: Vector3 = camera.project_ray_origin(pos)
+    var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from,from+camera.project_ray_normal(pos)*18.0)
+    var hit: Dictionary = game.get_world_3d().direct_space_state.intersect_ray(query)
     if hit.is_empty(): return
-    var collider = hit.get("collider")
+    var collider: Object = hit.get("collider") as Object
     if collider is Node and collider.is_in_group("cockpit_action"):
         run_action(String(collider.get_meta("action","")))
         get_viewport().set_input_as_handled()
