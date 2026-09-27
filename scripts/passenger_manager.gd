@@ -157,7 +157,7 @@ func _unhandled_input(event):
     var from := camera.project_ray_origin(screen_pos)
     var to := from + camera.project_ray_normal(screen_pos) * 30.0
     var query := PhysicsRayQueryParameters3D.create(from, to)
-    var hit := game.get_world_3d().direct_space_state.intersect_ray(query)
+    var hit: Dictionary = game.get_world_3d().direct_space_state.intersect_ray(query)
     if hit.is_empty():
         return
     var collider = hit.get("collider")
