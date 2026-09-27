@@ -24,6 +24,14 @@ var birds: Array[Node3D] = []
 var fuel_hose: MeshInstance3D
 var has_flown := false
 var landing_target_z := -170.0
+var failure_timer := 16.0
+var active_failure := ""
+var failure_time_left := 0.0
+var held_item := ""
+var extinguisher_pos := Vector3(-1.9,0.8,5.7)
+var tools_pos := Vector3(1.9,0.8,5.7)
+var repair_panel_pos := Vector3(2.25,1.3,2.8)
+var fire_panel_pos := Vector3(-2.25,1.3,2.8)
 
 func _ready():
     build_world()
@@ -92,6 +100,11 @@ func build_plane():
     box(plane,"GearL",Vector3(-2.0,-1.0,2.0),Vector3(0.45,1.8,0.45),Color(0.05,0.05,0.05))
     box(plane,"GearR",Vector3(2.0,-1.0,2.0),Vector3(0.45,1.8,0.45),Color(0.05,0.05,0.05))
     box(plane,"NoseGear",Vector3(0,-1.0,-5.0),Vector3(0.4,1.7,0.4),Color(0.05,0.05,0.05))
+    box(plane,"EquipmentCabinet",Vector3(0,1.1,6.5),Vector3(4.4,2.1,0.55),Color(0.48,0.5,0.52))
+    box(plane,"Extinguisher",extinguisher_pos,Vector3(0.45,1.2,0.45),Color(0.85,0.06,0.04))
+    box(plane,"Toolbox",tools_pos,Vector3(0.9,0.45,0.55),Color(0.08,0.16,0.7))
+    box(plane,"ElectricalPanel",repair_panel_pos,Vector3(0.25,1.2,1.2),Color(0.12,0.12,0.14))
+    box(plane,"FireAccess",fire_panel_pos,Vector3(0.25,1.2,1.2),Color(0.45,0.08,0.04))
     for z in [-1.0,1.0,3.0,5.0]:
         box(plane,"SeatL",Vector3(-1.3,0.65,z),Vector3(0.8,1.3,0.8),Color(0.16,0.22,0.32))
         box(plane,"SeatR",Vector3(1.3,0.65,z),Vector3(0.8,1.3,0.8),Color(0.16,0.22,0.32))
@@ -170,6 +183,19 @@ func _process(delta):
         var v = Input.get_vector("move_left","move_right","move_forward","move_back")
         player.velocity = player.transform.basis*Vector3(v.x,0,v.y)*3.5
         player.move_and_slide()
+    if has_flown and active_failure == "":
+        failure_timer -= delta
+        if failure_timer <= 0:
+            start_random_failure()
+    if active_failure != "":
+        failure_time_left -= delta
+        if active_failure == "engine_fire":
+            speed = max(0.0,speed-delta*3.0)
+        elif active_failure == "electrical":
+            wipers_on = false
+        if failure_time_left <= 0:
+            fail_flight("поломка не была устранена вовремя!")
+            return
     bird_timer -= delta
     if altitude > 3 and bird_timer <= 0:
         spawn_bird()
@@ -182,7 +208,9 @@ func _process(delta):
     rain_overlay.color.a = 0.12 if raining else 0.0
     if wipers_on:
         dirt.color.a = max(0.0,dirt.color.a-delta*0.28)
-    hud.text = "ТОПЛИВО %d%%   ТЯГА %d%%   СКОРОСТЬ %d   ВЫСОТА %d м\n%s | ДВОРНИКИ %s | %s" % [fuel,throttle*100,speed,altitude,"ДВИГАТЕЛЬ ВКЛ" if engine_on else "ДВИГАТЕЛЬ ВЫКЛ","ВКЛ" if wipers_on else "ВЫКЛ","В КРЕСЛЕ" if seated else "ХОЖУ"]
+    var problem = "НОРМА" if active_failure == "" else "АВАРИЯ: "+active_failure
+    var item = "ничего" if held_item == "" else held_item
+    hud.text = "ТОПЛИВО %d%%   ТЯГА %d%%   СКОРОСТЬ %d   ВЫСОТА %d м\n%s | ДВОРНИКИ %s | %s" % [fuel,throttle*100,speed,altitude,"ДВИГАТЕЛЬ ВКЛ" if engine_on else "ДВИГАТЕЛЬ ВЫКЛ","ВКЛ" if wipers_on else "ВЫКЛ","В КРЕСЛЕ" if seated else "ХОЖУ"] + "\nСИСТЕМА: "+problem+" | В РУКАХ: "+item
     if Input.is_action_just_pressed("interact"): interact()
 
 func spawn_bird():
@@ -216,6 +244,27 @@ func interact():
             refueling = true
             show_fuel_hose()
             show_hint("Шланг подключён к самолёту. Идёт заправка...")
+            return
+        var local_pos = player.position
+        if local_pos.distance_to(extinguisher_pos) < 2.0:
+            held_item = "огнетушитель"
+            show_hint("Ты взял огнетушитель.")
+            return
+        if local_pos.distance_to(tools_pos) < 2.0:
+            held_item = "инструменты"
+            show_hint("Ты взял набор инструментов.")
+            return
+        if active_failure == "engine_fire" and local_pos.distance_to(fire_panel_pos) < 2.0:
+            if held_item == "огнетушитель":
+                fix_failure("Пожар потушен! Возвращайся к управлению.")
+            else:
+                show_hint("Здесь пожар! Нужен огнетушитель из заднего шкафчика.")
+            return
+        if active_failure == "electrical" and local_pos.distance_to(repair_panel_pos) < 2.0:
+            if held_item == "инструменты":
+                fix_failure("Электрика починена. Системы снова работают.")
+            else:
+                show_hint("Панель сломана. Нужны инструменты из заднего шкафчика.")
             return
     if seated and not engine_on and fuel > 0:
         engine_on = true
@@ -285,3 +334,21 @@ func check_landing():
             hint.text = "РЕЙС ВЫПОЛНЕН! Отличная посадка ✈"
         elif speed > 155.0:
             fail_flight("слишком высокая скорость при посадке!")
+
+
+func start_random_failure():
+    failure_timer = randf_range(22.0,38.0)
+    failure_time_left = 24.0
+    if randf() < 0.5:
+        active_failure = "engine_fire"
+        show_hint("⚠ ПОЖАР! Встань, возьми огнетушитель в заднем шкафчике и подойди к красной панели.")
+    else:
+        active_failure = "electrical"
+        show_hint("⚠ СБОЙ ЭЛЕКТРИКИ! Возьми инструменты и почини правую панель.")
+
+func fix_failure(message: String):
+    active_failure = ""
+    failure_time_left = 0.0
+    held_item = ""
+    failure_timer = randf_range(25.0,45.0)
+    show_hint(message)
