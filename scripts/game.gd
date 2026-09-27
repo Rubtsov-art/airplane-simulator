@@ -32,11 +32,14 @@ var extinguisher_pos := Vector3(-1.9,0.8,5.7)
 var tools_pos := Vector3(1.9,0.8,5.7)
 var repair_panel_pos := Vector3(2.25,1.3,2.8)
 var fire_panel_pos := Vector3(-2.25,1.3,2.8)
+var audio_manager: Node
 
 func _ready():
     build_world()
     build_plane()
     build_hud()
+    audio_manager = preload("res://scripts/audio_manager.gd").new()
+    add_child(audio_manager)
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
     show_hint("ОБУЧЕНИЕ: выйди из самолёта кнопкой ВСТАТЬ и заправь его.")
 
@@ -157,6 +160,8 @@ func add_touch_button(parent: Node, title: String, pos: Vector2, callback: Calla
 
 func _process(delta):
     if game_over: return
+    audio_manager.update_engine(engine_on,throttle)
+    audio_manager.update_ambience(raining,wipers_on,active_failure != "",refueling)
     if engine_on:
         fuel = max(0.0,fuel-delta*(0.02+throttle*0.05))
         if fuel <= 0:
@@ -233,11 +238,14 @@ func update_birds(delta):
             bird.queue_free()
 
 func fail_flight(reason: String):
+    audio_manager.one_shot("fail")
+    audio_manager.stop("alarm")
     game_over = true
     throttle = 0
     hint.text = "РЕЙС ПРОВАЛЕН — "+reason+"  Перезапусти игру."
 
 func interact():
+    audio_manager.one_shot("click",-4.0)
     if not seated:
         var world_pos = player.global_position
         if world_pos.distance_to(Vector3(12,0,160)) < 9:
@@ -331,6 +339,8 @@ func check_landing():
             game_over = true
             throttle = 0.0
             engine_on = false
+            audio_manager.one_shot("success")
+            audio_manager.stop("engine")
             hint.text = "РЕЙС ВЫПОЛНЕН! Отличная посадка ✈"
         elif speed > 155.0:
             fail_flight("слишком высокая скорость при посадке!")
