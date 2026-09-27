@@ -21,6 +21,9 @@ var hint: Label
 var dirt: ColorRect
 var rain_overlay: ColorRect
 var birds: Array[Node3D] = []
+var fuel_hose: MeshInstance3D
+var has_flown := false
+var landing_target_z := -170.0
 
 func _ready():
     build_world()
@@ -79,6 +82,16 @@ func build_plane():
     box(plane,"RightWall",Vector3(2.5,1.5,1),Vector3(0.2,3,14),Color(0.72,0.75,0.78))
     box(plane,"Roof",Vector3(0,3,1),Vector3(5,0.2,14),Color(0.65,0.68,0.72))
     box(plane,"Dashboard",Vector3(0,1.05,-5.6),Vector3(4.8,1.6,0.8),Color(0.06,0.07,0.08))
+    # Exterior silhouette: nose, wings, tail, engines and landing gear.
+    box(plane,"Nose",Vector3(0,0.7,-8.0),Vector3(4.0,2.0,4.0),Color(0.92,0.94,0.96))
+    box(plane,"LeftWing",Vector3(-6.5,0.15,0.8),Vector3(8.0,0.25,3.0),Color(0.88,0.9,0.93))
+    box(plane,"RightWing",Vector3(6.5,0.15,0.8),Vector3(8.0,0.25,3.0),Color(0.88,0.9,0.93))
+    box(plane,"Tail",Vector3(0,2.5,8.0),Vector3(0.35,4.5,3.0),Color(0.85,0.1,0.12))
+    box(plane,"EngineL",Vector3(-5.2,-0.45,0.0),Vector3(2.0,1.7,3.2),Color(0.25,0.28,0.32))
+    box(plane,"EngineR",Vector3(5.2,-0.45,0.0),Vector3(2.0,1.7,3.2),Color(0.25,0.28,0.32))
+    box(plane,"GearL",Vector3(-2.0,-1.0,2.0),Vector3(0.45,1.8,0.45),Color(0.05,0.05,0.05))
+    box(plane,"GearR",Vector3(2.0,-1.0,2.0),Vector3(0.45,1.8,0.45),Color(0.05,0.05,0.05))
+    box(plane,"NoseGear",Vector3(0,-1.0,-5.0),Vector3(0.4,1.7,0.4),Color(0.05,0.05,0.05))
     for z in [-1.0,1.0,3.0,5.0]:
         box(plane,"SeatL",Vector3(-1.3,0.65,z),Vector3(0.8,1.3,0.8),Color(0.16,0.22,0.32))
         box(plane,"SeatR",Vector3(1.3,0.65,z),Vector3(0.8,1.3,0.8),Color(0.16,0.22,0.32))
@@ -140,6 +153,7 @@ func _process(delta):
         fuel = min(100.0,fuel+delta*18.0)
         if fuel >= 100:
             refueling = false
+            if fuel_hose: fuel_hose.visible = false
             tutorial_step = max(tutorial_step,1)
             show_hint("Бак полный. Вернись в кабину, сядь и запусти двигатель.")
     if seated:
@@ -150,6 +164,8 @@ func _process(delta):
         if speed > 90 and Input.is_action_pressed("pitch_down"):
             altitude = max(0.0,altitude-delta*35.0)
         plane.position.y = 1.2+altitude
+        if altitude > 8: has_flown = true
+        check_landing()
     else:
         var v = Input.get_vector("move_left","move_right","move_forward","move_back")
         player.velocity = player.transform.basis*Vector3(v.x,0,v.y)*3.5
@@ -198,7 +214,8 @@ func interact():
         var world_pos = player.global_position
         if world_pos.distance_to(Vector3(12,0,160)) < 9:
             refueling = true
-            show_hint("Шланг подключён. Идёт заправка...")
+            show_fuel_hose()
+            show_hint("Шланг подключён к самолёту. Идёт заправка...")
             return
     if seated and not engine_on and fuel > 0:
         engine_on = true
@@ -234,3 +251,37 @@ func _input(event):
         camera.rotation.x = clamp(camera.rotation.x-event.relative.y*0.002,-1.2,1.2)
     if event is InputEventKey and event.keycode == KEY_ESCAPE:
         Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func show_fuel_hose():
+    if fuel_hose == null:
+        fuel_hose = MeshInstance3D.new()
+        var cyl = CylinderMesh.new()
+        cyl.top_radius = 0.09
+        cyl.bottom_radius = 0.09
+        cyl.height = 10.0
+        fuel_hose.mesh = cyl
+        var mat = StandardMaterial3D.new()
+        mat.albedo_color = Color(0.08,0.08,0.08)
+        fuel_hose.material_override = mat
+        add_child(fuel_hose)
+    var start = Vector3(12,1.0,160)
+    var finish = plane.global_position + Vector3(2.7,0.0,2.0)
+    var mid = (start+finish)*0.5
+    fuel_hose.global_position = mid
+    fuel_hose.scale.y = start.distance_to(finish)/10.0
+    fuel_hose.look_at(finish,Vector3.UP)
+    fuel_hose.rotate_object_local(Vector3.RIGHT,PI/2.0)
+    fuel_hose.visible = true
+
+func check_landing():
+    if not has_flown or game_over: return
+    # Landing zone is the far half of the same runway.
+    if altitude <= 0.5 and plane.position.z < landing_target_z:
+        if speed <= 115.0:
+            game_over = true
+            throttle = 0.0
+            engine_on = false
+            hint.text = "РЕЙС ВЫПОЛНЕН! Отличная посадка ✈"
+        elif speed > 155.0:
+            fail_flight("слишком высокая скорость при посадке!")
