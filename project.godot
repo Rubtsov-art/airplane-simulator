@@ -1,5 +1,6 @@
 [application]
 config/name="Airplane Simulator"
+config/icon="res://assets/app_icon.png"
 run/main_scene="res://main.tscn"
 
 [display]
