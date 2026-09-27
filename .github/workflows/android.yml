@@ -1,0 +1,36 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.gd'
+      - '**/*.tscn'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/android.yml'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.7.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import project
+        run: godot --headless --path . --editor --quit
+
+      - name: Build debug APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/airplane-simulator-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: airplane-simulator-android
+          path: build/airplane-simulator-debug.apk
+          if-no-files-found: error
